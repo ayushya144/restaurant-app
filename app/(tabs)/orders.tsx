@@ -1,15 +1,18 @@
 import { useGetAllOrdersQuery } from "@/store/apis/orders";
 import React, { useState } from "react";
+import { SafeAreaView, FlatList, View, Image } from "react-native";
 import {
-  SafeAreaView,
+  Card,
   Text,
-  View,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
+  Avatar,
+  Provider as PaperProvider,
+  Portal,
   Modal,
-  Image,
-} from "react-native";
+  Button,
+  Divider,
+  Chip,
+  useTheme,
+} from "react-native-paper";
 
 interface Item {
   _id: string;
@@ -49,232 +52,222 @@ const Orders: React.FC = () => {
     order: null,
     isModalOpen: false,
   });
-  const { data, isLoading, isError, isFetching, isSuccess } =
-    useGetAllOrdersQuery({});
-
+  const { data } = useGetAllOrdersQuery({});
   const orders: Order[] = data || [];
+  const theme = useTheme();
 
   const openOrderDetails = (order: Order) =>
     setSelectedOrder({ order, isModalOpen: true });
   const closeOrderDetails = () => {
-    setSelectedOrder({ order: selectedOrder?.order, isModalOpen: false });
+    setSelectedOrder({ order: selectedOrder.order, isModalOpen: false });
     setTimeout(
-      () =>
-        setSelectedOrder({
-          order: null,
-          isModalOpen: false,
-        }),
+      () => setSelectedOrder({ order: null, isModalOpen: false }),
       500
     );
   };
 
   const renderOrder = ({ item }: { item: Order }) => (
-    <TouchableOpacity
-      style={styles.orderOverview}
+    <Card
+      mode="elevated"
+      style={{
+        marginVertical: 8,
+        marginHorizontal: 16,
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        padding: 12,
+      }}
       onPress={() => openOrderDetails(item)}
     >
-      <Text style={styles.orderText}>
-        Customer: {item.customerDetails.firstName}{" "}
-        {item.customerDetails.lastName}
-      </Text>
-      <Text style={styles.orderText}>
-        Date: {new Date(item.createdAt).toLocaleDateString()}
-      </Text>
-      <Text style={styles.orderText}>Total: ${item.totalPrice.toFixed(2)}</Text>
-      <Text style={[styles.orderText, styles.status]}>{item.status}</Text>
-    </TouchableOpacity>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Avatar.Text
+          size={40}
+          label={item.customerDetails.firstName.charAt(0)}
+          style={{ backgroundColor: theme.colors.primaryContainer }}
+        />
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <Text
+            variant="titleMedium"
+            style={{ color: theme.colors.primary, fontWeight: "bold" }}
+          >
+            {`${item.customerDetails.firstName} ${item.customerDetails.lastName}`}
+          </Text>
+          <Text
+            variant="bodySmall"
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
+            Date: {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+        <Chip
+          mode="flat"
+          style={{
+            backgroundColor:
+              item.status === "Completed"
+                ? theme.colors.secondary
+                : item.status === "Pending"
+                ? theme.colors.tertiary
+                : theme.colors.error,
+            height: 28,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          textStyle={{
+            fontSize: 11,
+            color: theme.colors.onPrimary,
+            lineHeight: 14,
+            fontWeight: "bold",
+          }}
+        >
+          {item.status}
+        </Chip>
+      </View>
+
+      <Divider style={{ marginVertical: 8 }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text
+          style={{
+            fontSize: 16,
+            color: theme.colors.onSurface,
+            fontWeight: "bold",
+          }}
+        >
+          Total: ${item.totalPrice.toFixed(2)}
+        </Text>
+      </View>
+    </Card>
   );
 
   const renderCartItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartItem}>
+    <View style={{ flexDirection: "row", marginVertical: 8 }}>
       <Image
         source={{ uri: item.item.itemImagePath }}
-        style={styles.itemImage}
+        style={{
+          width: 60,
+          height: 60,
+          borderRadius: 8,
+          marginRight: 10,
+        }}
       />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName}>{item.item.itemName}</Text>
-        <Text style={styles.itemPrice}>
+      <View style={{ flex: 1 }}>
+        <Text
+          variant="bodyLarge"
+          style={{
+            color: theme.colors.onSurfaceVariant,
+          }}
+        >
+          {item.item.itemName}
+        </Text>
+        <Text
+          variant="bodyMedium"
+          style={{
+            color: theme.colors.onSurfaceVariant,
+          }}
+        >
           ${item.item.itemPrice.toFixed(2)} x {item.quantity}
         </Text>
-        <Text style={styles.itemTotal}>
+        <Text
+          variant="bodyMedium"
+          style={{ fontWeight: "bold", color: theme.colors.onSurface }}
+        >
           Total: ${(item.item.itemPrice * item.quantity).toFixed(2)}
         </Text>
       </View>
     </View>
   );
 
-  const orderDetail = selectedOrder?.order;
+  const orderDetail = selectedOrder.order;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <FlatList
         data={orders}
         keyExtractor={(item) => item._id}
         renderItem={renderOrder}
+        contentContainerStyle={{ paddingTop: 26 }}
       />
 
-      <Modal
-        visible={selectedOrder?.isModalOpen}
-        animationType="fade"
-        transparent
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {orderDetail && (
-              <>
-                <Text style={styles.customerName}>
-                  {orderDetail.customerDetails.firstName}{" "}
-                  {orderDetail.customerDetails.lastName}
-                </Text>
-                <Text style={styles.customerContact}>
-                  Email: {orderDetail.customerDetails.email}
-                </Text>
-                <Text style={styles.customerContact}>
-                  Phone: {orderDetail.customerDetails.phoneNo}
-                </Text>
-                <Text style={styles.orderDate}>
-                  Order Date:{" "}
-                  {new Date(orderDetail.createdAt).toLocaleDateString()}
-                </Text>
+      <Portal>
+        <Modal
+          visible={selectedOrder.isModalOpen}
+          onDismiss={closeOrderDetails}
+          contentContainerStyle={{
+            backgroundColor: theme.colors.surface,
+            borderRadius: 10,
+            padding: 20,
+            margin: 20,
+          }}
+        >
+          {orderDetail && (
+            <>
+              <Text
+                variant="titleMedium"
+                style={{ fontWeight: "bold", color: theme.colors.primary }}
+              >
+                {orderDetail.customerDetails.firstName}{" "}
+                {orderDetail.customerDetails.lastName}
+              </Text>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface }}
+              >
+                Email: {orderDetail.customerDetails.email}
+              </Text>
+              <Text
+                variant="bodyMedium"
+                style={{ color: theme.colors.onSurface }}
+              >
+                Phone: {orderDetail.customerDetails.phoneNo}
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginVertical: 8,
+                }}
+              >
+                Order Date:{" "}
+                {new Date(orderDetail.createdAt).toLocaleDateString()}
+              </Text>
 
-                <FlatList
-                  data={orderDetail.cart}
-                  keyExtractor={(cartItem) => cartItem.item._id}
-                  renderItem={renderCartItem}
-                  //   style={styles.cartList}
-                />
-
-                <View style={styles.orderSummary}>
-                  <Text style={styles.orderStatus}>
-                    Status: {orderDetail.status}
-                  </Text>
-                  <Text style={styles.totalPrice}>
-                    Total Price: ${orderDetail.totalPrice.toFixed(2)}
-                  </Text>
-                </View>
-              </>
-            )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={closeOrderDetails}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+              <FlatList
+                data={orderDetail.cart}
+                keyExtractor={(cartItem) => cartItem.item._id}
+                renderItem={renderCartItem}
+              />
+              <Divider style={{ marginVertical: 10 }} />
+              <View style={{ marginTop: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: theme.colors.tertiary,
+                    fontWeight: "bold",
+                  }}
+                >
+                  Status: {orderDetail.status}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: theme.colors.error,
+                    fontWeight: "bold",
+                  }}
+                >
+                  Total Price: ${orderDetail.totalPrice.toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
+          <Button
+            mode="contained"
+            onPress={closeOrderDetails}
+            style={{ backgroundColor: theme.colors.error, marginTop: 15 }}
+          >
+            Close
+          </Button>
+        </Modal>
+      </Portal>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: "#f8f8f8",
-  },
-  orderOverview: {
-    backgroundColor: "#fff",
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  orderText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  status: {
-    fontWeight: "bold",
-    color: "#28a745",
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    margin: 20,
-    maxHeight: "80%",
-  },
-  customerName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  customerContact: {
-    fontSize: 14,
-    color: "#555",
-  },
-  orderDate: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  cartItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  itemDetails: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  itemPrice: {
-    fontSize: 13,
-    color: "#777",
-  },
-  itemTotal: {
-    fontSize: 13,
-    color: "#777",
-    fontWeight: "bold",
-    marginTop: 3,
-  },
-  orderSummary: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
-    paddingTop: 10,
-  },
-  orderStatus: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#28a745",
-  },
-  totalPrice: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#e63946",
-  },
-  closeButton: {
-    backgroundColor: "#e63946",
-    borderRadius: 5,
-    padding: 10,
-    marginTop: 15,
-    alignItems: "center",
-  },
-  closeButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-});
 
 export default Orders;
