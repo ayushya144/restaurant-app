@@ -8,6 +8,7 @@ import { store } from "@/store";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { PaperProvider } from "react-native-paper";
+import { AuthProvider } from "@/context/AuthContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -30,12 +31,14 @@ export default function RootLayout() {
 
   return (
     <Provider store={store}>
-      <PaperProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </PaperProvider>
+      <AuthProvider>
+        <PaperProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        </PaperProvider>
+      </AuthProvider>
     </Provider>
   );
 }

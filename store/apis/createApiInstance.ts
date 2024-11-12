@@ -18,84 +18,104 @@ interface RefreshResult {
   };
 }
 
-const refreshQuery = fetchBaseQuery({
-  baseUrl: config.baseUrl,
-  prepareHeaders: (headers) => {
-    const token = getCookie("refresh")
-      ? JSON.parse(getCookie("refresh") as string)
-      : false;
-    if (token) {
-      headers.set("x-refresh-token", token);
-    }
-    return headers;
-  },
-});
+const refreshQuery = async (args: any, api: any, extraOptions: any) => {
+  const headers = new Headers();
 
-console.log({ sddabdjsabdjabsdkjasbdkbasjdbsadbkkjasd: config.baseUrl });
+  const token = await getCookie("refresh"); // Await the promise
+  if (token) {
+    headers.set("x-refresh-token", token);
+  }
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: config.baseUrl,
-  prepareHeaders: (headers) => {
-    const token = getCookie("token")
-      ? JSON.parse(getCookie("token") as string)
-      : false;
-    headers.set("ngrok-skip-browser-warning", "1");
-    if (token) {
-      headers.set("authorization", token);
-    }
-    return headers;
-  },
-});
+  return fetchBaseQuery({
+    baseUrl: config.baseUrl,
+    prepareHeaders: (headers) => {
+      // This section can remain the same
+      return headers;
+    },
+  })(args, api, extraOptions);
+};
+
+const baseQuery = async (args: any, api: any, extraOptions: any) => {
+  const headers = new Headers();
+
+  // Fetch the token asynchronously
+  const tokenCookie = await getCookie("token");
+  console.log(tokenCookie);
+  const token = tokenCookie ? JSON.parse(tokenCookie) : false;
+
+  console.log(getCookie("token"), "ahsdbgahsdsadhasbd");
+
+  headers.set("ngrok-skip-browser-warning", "1");
+  console.log({ token });
+  if (token) {
+    headers.set("authorization", token);
+  }
+
+  // Call the original fetchBaseQuery with the configured headers
+  const fetch = fetchBaseQuery({
+    baseUrl: config.baseUrl,
+    prepareHeaders: (headers) => {
+      // This section can remain empty or include additional header configurations
+      return headers;
+    },
+  });
+
+  return fetch(args, api, extraOptions);
+};
 
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
+  // First, try the original base query
   let result = await baseQuery(args, api, extraOptions);
 
-  console.log({ resultaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: result });
+  console.log({ result });
 
+  // Check for 401 Unauthorized
   if (result.error && result.error.status === 401) {
-    // const token = getCookie("refresh")
-    //   ? JSON.parse(getCookie("refresh") as string)
-    //   : false;
+    // Retrieve the refresh token asynchronously
+    const refreshCookie = await getCookie("refresh");
+    const token = refreshCookie ? JSON.parse(refreshCookie as string) : false;
 
-    // if (token) {
-    //   // try to get a new token
-    //   const refreshResult = (await refreshQuery(
-    //     "/auth/refresh-token",
-    //     api,
-    //     extraOptions
-    //   )) as { data: RefreshResult };
+    if (token) {
+      // Try to get a new token
+      const refreshResult = (await refreshQuery(
+        "/auth/refresh-token",
+        api,
+        extraOptions
+      )) as { data: RefreshResult };
 
-    //   if (
-    //     refreshResult?.data?.status === 200 &&
-    //     refreshResult?.data?.data?.token &&
-    //     refreshResult?.data?.data?.refToken
-    //   ) {
-    //     // Set new tokens
-    //     setCookie("token", refreshResult.data.data.token);
-    //     setCookie("refresh", refreshResult.data.data.refToken);
+      if (
+        refreshResult?.data?.status === 200 &&
+        refreshResult?.data?.data?.token &&
+        refreshResult?.data?.data?.refToken
+      ) {
+        // Set new tokens in cookies
+        setCookie("token", refreshResult.data.data.token);
+        setCookie("refresh", refreshResult.data.data.refToken);
 
-    //     // Store the new user info
-    //     api.dispatch(setUserInfo(refreshResult.data.data.user));
+        // Store the new user info in the Redux store
+        api.dispatch(setUserInfo(refreshResult.data.data.user));
 
-    //     // Retry the original query with new token
-    //     return await baseQuery(args, api, extraOptions);
-    //   }
-    // }
+        // Retry the original query with the new token
+        return await baseQuery(args, api, extraOptions);
+      }
+    }
 
-    // Logout if refresh fails
-    deleteAllCookies();
+    // If the refresh token retrieval fails, logout the user
+    // deleteAllCookies();
     api.dispatch({ type: "logout" });
     window.location.href = "/sign-in";
   }
 
+  // Check for 403 Forbidden errors
   if (result.error && result.error.status === 403) {
     console.error("You do not have permission to access", result.error);
   }
 
+  // Return the result
   return result;
 };
 

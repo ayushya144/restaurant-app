@@ -1,3 +1,5 @@
+import * as SecureStore from "expo-secure-store";
+
 interface JwtToken {
   raw: string;
   header: Record<string, any>;
@@ -16,30 +18,62 @@ export const jwtDecode = (t: string): JwtToken | string => {
   return t;
 };
 
-export const setCookie = (cname: string, cvalue: string): void => {
+export const setCookie = async (
+  cname: string,
+  cvalue: string
+): Promise<void> => {
   if (cvalue) {
+    console.log({ cvalue });
     const jwtData = jwtDecode(cvalue) as JwtToken;
-    const d = jwtData.payload.exp
+    // const d = jwtData.payload.exp
+    //   ? new Date(jwtData.payload.exp * 1000).toUTCString()
+    //   : new Date(new Date().getTime() + 60 * 60 * 1000).toUTCString();
+    // const expires = "expires=" + d;
+
+    const expiryTimestamp = jwtData.payload.exp
       ? new Date(jwtData.payload.exp * 1000).toUTCString()
       : new Date(new Date().getTime() + 60 * 60 * 1000).toUTCString();
-    const expires = "expires=" + d;
+
+    const dataToStore = JSON.stringify({
+      token: cvalue,
+      expiry: expiryTimestamp,
+    });
     // document.cookie =
     //   cname + "=" + btoa(JSON.stringify(cvalue)) + ";" + expires + ";path=/";
+    await SecureStore.setItemAsync(cname, dataToStore);
   }
 };
 
-export const getCookie = (cname: string): string => {
-  const name = cname + "=";
-  //   const decodedCookie = decodeURIComponent(document.cookie);
-  //   const ca = decodedCookie.split(";");
-  //   for (let i = 0; i < ca.length; i++) {
-  //     let c = ca[i].trim();
-  //     if (c.indexOf(name) === 0 && name.length !== c.length) {
-  //       return atob(c.substring(name.length));
-  //     }
-  //   }
-  return "";
+export const getCookie = async (cname: string): Promise<string | null> => {
+  const storedData = await SecureStore.getItemAsync(cname);
+  console.log({ storedData });
+
+  if (storedData) {
+    const { token, expiry } = JSON.parse(storedData);
+
+    // if (Date.now() < expiry) {
+    return token; // Token is valid
+    // }
+    //  else {
+    //   await SecureStore.deleteItemAsync(cname); // Token has expired, delete it
+    //   return null;
+    // }
+  }
+  return null; // No token found
 };
+
+// export const getCookie = (cname: string): string => {
+//   const name = cname + "=";
+//   //   const decodedCookie = decodeURIComponent(document.cookie);
+//   //   const ca = decodedCookie.split(";");
+//   //   for (let i = 0; i < ca.length; i++) {
+//   //     let c = ca[i].trim();
+//   //     if (c.indexOf(name) === 0 && name.length !== c.length) {
+//   //       return atob(c.substring(name.length));
+//   //     }
+//   //   }
+//   return "";
+// };
 
 export const deleteCookie = (cname: string): void => {
   //   document.cookie = `${cname}=; Path=/; max-age=0`;

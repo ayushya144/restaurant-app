@@ -52,6 +52,8 @@ const Orders: React.FC = () => {
   const { data, isLoading, isError, isFetching, isSuccess } =
     useGetAllOrdersQuery({});
 
+  console.log({ data });
+
   const orders: Order[] = data || [];
 
   const openOrderDetails = (order: Order) =>
